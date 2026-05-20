@@ -11,8 +11,11 @@ import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.ScreenUtils;
+import com.badlogic.gdx.utils.TimeUtils;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 
 /** {@link com.badlogic.gdx.ApplicationListener} implementation shared by all platforms. */
@@ -27,6 +30,9 @@ public class Main extends ApplicationAdapter {
     private Sound dropSound;
     private Music music;
     private Vector2 touchPos;
+    private Array<Sprite> dropSprites;
+    private float dropTimer;
+    private long lastRecorded=0;
     
     @Override
     public void create() {
@@ -49,7 +55,31 @@ public class Main extends ApplicationAdapter {
         bucketSprite.setSize(1, 1);
         
         touchPos = new Vector2();
+        
+        //droplets
+        dropSprites = new Array<>();
+        createDroplet();
     }
+    
+    
+    private void createDroplet()
+    {
+    	float dropWidth = 1;
+        float dropHeight = 1;
+        float worldWidth = viewport.getWorldWidth();
+        float worldHeight = viewport.getWorldHeight();
+        
+        //create dropSprite 
+        Sprite dropSprite = new Sprite(dropTexture);
+        dropSprite.setSize(dropWidth, dropHeight);
+        dropSprite.setX(MathUtils.random(0f,worldWidth-dropWidth));
+        dropSprite.setY(worldHeight);
+        
+        dropSprites.add(dropSprite);
+        
+    }
+    
+    
     @Override
     public void resize(int width, int height) {
         viewport.update(width, height, true); // true centers the camera
@@ -65,12 +95,43 @@ public class Main extends ApplicationAdapter {
 //        shape.circle(200, 100, 78);
 //        shape.end();
 //        batch.end();
-          draw();
+          
           input();
+          logic();
+          draw();
     }
     
-    private void input() {
-    	float speed = 0.25f;
+    private void logic() {
+		// TODO Auto-generated method stub
+    	float worldWidth = viewport.getWorldWidth();
+    	float worldHeight = viewport.getWorldHeight();
+    	 float delta = Gdx.graphics.getDeltaTime(); // retrieve the current delta
+    	float bucketWidth = bucketSprite.getWidth();
+    	float bucketHeight = bucketSprite.getHeight();
+    	
+    	bucketSprite.setX(MathUtils.clamp(bucketSprite.getX(), 0, worldWidth-bucketWidth));
+    	
+    	//for drop to move
+    	for (Sprite dropSprite : dropSprites) {
+            dropSprite.translateY(-2f * delta); // move the drop downward every frame
+        }
+    	dropTimer+=delta;
+    	if(dropTimer>1f)
+    	{
+    		createDroplet();
+    		dropTimer = 0;
+    	}
+//    	long currentTime = TimeUtils.millis();
+//    	if(currentTime-lastRecorded>1000)
+//    	{
+//    		lastRecorded=currentTime;
+//    		createDroplet();
+//    	}
+    	
+		
+	}
+	private void input() {
+    	float speed = 10f;
     	float delta = Gdx.graphics.getDeltaTime();
         if (Gdx.input.isKeyPressed(Input.Keys.RIGHT)) {
             // todo: Do something when the user presses the right arrow
@@ -85,7 +146,7 @@ public class Main extends ApplicationAdapter {
             touchPos.set(Gdx.input.getX(), Gdx.input.getY()); // Get where the touch happened on screen
             viewport.unproject(touchPos); // Convert the units to the world units of the viewport
             bucketSprite.setCenterX(touchPos.x); // Change the horizontally centered position of the bucket
-            bucketSprite.setCenterY(touchPos.y);
+           // bucketSprite.setCenterY(touchPos.y); we don't need this now
         }
     }
 
@@ -100,7 +161,13 @@ public class Main extends ApplicationAdapter {
         float worldHeight = viewport.getWorldHeight();
         batch.draw(backgroundTexture,0,0,worldWidth,worldHeight);
         bucketSprite.draw(batch);
+        
         //batch.draw(bucketTexture, 0, 0, 1,1); can be done like this also
+        
+        for(Sprite dropSprite:dropSprites)
+        {
+        	dropSprite.draw(batch);
+        }
         
         batch.end();
     }
