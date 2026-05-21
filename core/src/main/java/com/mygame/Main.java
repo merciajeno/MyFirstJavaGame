@@ -12,6 +12,7 @@ import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
+import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.ScreenUtils;
@@ -22,6 +23,7 @@ import com.badlogic.gdx.utils.viewport.FitViewport;
 public class Main extends ApplicationAdapter {
     private SpriteBatch batch;
     private Texture image;
+    private BitmapFont font;
     private Sprite bucketSprite;
     private FitViewport viewport;
     private Texture backgroundTexture;
@@ -33,11 +35,24 @@ public class Main extends ApplicationAdapter {
     private Array<Sprite> dropSprites;
     private float dropTimer;
     private long lastRecorded=0;
+    private Rectangle bucketRectangle;
+    private Rectangle dropRectangle;
+    private int points = 0;
     
     @Override
     public void create() {
+    	
+    	
+    	
         batch = new SpriteBatch();
         image = new Texture("libgdx.png");
+        
+        //font
+        font = new BitmapFont();
+        font.setColor(Color.WHITE);
+        font.setUseIntegerPositions(false);
+        font.getData().setScale(0.02f);
+        
         
         viewport = new FitViewport(8, 5);
         
@@ -50,6 +65,10 @@ public class Main extends ApplicationAdapter {
         dropSound = Gdx.audio.newSound(Gdx.files.internal("drop.mp3"));
         music = Gdx.audio.newMusic(Gdx.files.internal("music.mp3"));
         
+      //music
+    	music.setLooping(true);
+    	music.play();
+        
         //sprite
         bucketSprite = new Sprite(bucketTexture);
         bucketSprite.setSize(1, 1);
@@ -59,6 +78,10 @@ public class Main extends ApplicationAdapter {
         //droplets
         dropSprites = new Array<>();
         createDroplet();
+        
+        //rectangle
+        bucketRectangle = new Rectangle();
+        dropRectangle = new Rectangle();
     }
     
     
@@ -110,11 +133,28 @@ public class Main extends ApplicationAdapter {
     	float bucketHeight = bucketSprite.getHeight();
     	
     	bucketSprite.setX(MathUtils.clamp(bucketSprite.getX(), 0, worldWidth-bucketWidth));
-    	
+    	bucketRectangle.set(bucketSprite.getX(),bucketSprite.getY(),bucketWidth,bucketHeight);
     	//for drop to move
-    	for (Sprite dropSprite : dropSprites) {
-            dropSprite.translateY(-2f * delta); // move the drop downward every frame
-        }
+//    	for (Sprite dropSprite : dropSprites) { // can cause memory leaks as we are not removing object
+//            dropSprite.translateY(-2f * delta); // move the drop downward every frame
+//        }
+    	// to prevent index related error
+    	 for (int i = dropSprites.size - 1; i >= 0; i--) {
+    	        Sprite dropSprite = dropSprites.get(i); // Get the sprite from the list
+    	        float dropWidth = dropSprite.getWidth();
+    	        float dropHeight = dropSprite.getHeight();
+
+    	        dropSprite.translateY(-2f * delta);
+                dropRectangle.set(dropSprite.getX(), dropSprite.getY(), dropWidth, dropHeight);
+    	        // if the top of the drop goes below the bottom of the view, remove it
+    	        if (dropSprite.getY() < -dropHeight) dropSprites.removeIndex(i);
+    	        else if(dropRectangle.overlaps(bucketRectangle))
+    	        	{
+    	        	dropSprites.removeIndex(i);
+    	        	points+=1;
+    	        	dropSound.play();
+    	        	}
+    	    }
     	dropTimer+=delta;
     	if(dropTimer>1f)
     	{
@@ -164,11 +204,12 @@ public class Main extends ApplicationAdapter {
         
         //batch.draw(bucketTexture, 0, 0, 1,1); can be done like this also
         
-        for(Sprite dropSprite:dropSprites)
+        for(Sprite dropSprite:dropSprites) 
         {
         	dropSprite.draw(batch);
         }
-        
+       
+        font.draw(batch, "Points:" + points, 0.5f, 4.8f);
         batch.end();
     }
 
@@ -176,5 +217,6 @@ public class Main extends ApplicationAdapter {
     public void dispose() {
         batch.dispose();
         image.dispose();
+        font.dispose();
     }
 }
